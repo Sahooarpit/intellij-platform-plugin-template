@@ -1,17 +1,25 @@
 package org.jetbrains.plugins.template.services
 
-import com.intellij.openapi.components.Service
-import com.intellij.openapi.diagnostic.thisLogger
-import com.intellij.openapi.project.Project
-import org.jetbrains.plugins.template.MyBundle
+import com.intellij.openapi.components.*
+import org.jetbrains.plugins.template.api.ApiRequest
 
+@State(name = "ApiHistoryState", storages = [Storage("api_history.xml")])
 @Service(Service.Level.PROJECT)
-class MyProjectService(project: Project) {
+class MyProjectService : PersistentStateComponent<MyProjectService.State> {
 
-    init {
-        thisLogger().info(MyBundle["projectService", project.name])
-        thisLogger().warn("Don't forget to remove all non-needed sample code files with their corresponding registration entries in `plugin.xml`.")
+    class State {
+        var savedRequests: MutableList<ApiRequest> = mutableListOf()
     }
 
-    fun getRandomNumber() = (1..100).random()
+    private var myState = State()
+
+    override fun getState() = myState
+
+    override fun loadState(state: State) {
+        myState = state
+    }
+
+    fun addRequest(req: ApiRequest) {
+        myState.savedRequests.add(req)
+    }
 }

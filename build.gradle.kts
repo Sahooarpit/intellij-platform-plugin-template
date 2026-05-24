@@ -14,4 +14,5 @@ dependencies {
         intellijIdea("2025.2.6.2")
         testFramework(TestFrameworkType.Platform)
     }
+
 }
