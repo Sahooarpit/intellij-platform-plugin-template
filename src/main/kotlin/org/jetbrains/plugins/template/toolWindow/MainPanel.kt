@@ -18,34 +18,35 @@ import org.jetbrains.plugins.template.services.AiService
 import javax.swing.*
 
 class MainPanel(private val project: Project) {
-    // 1. UI Component Definitions
+    // API UI
     private val methodCombo = ComboBox(arrayOf("GET", "POST", "PUT", "DELETE"))
-    private val urlField = JTextField("https://jsonplaceholder.typicode.com/posts/1")
+    private val urlField = JTextField("https://httpbin.org/get")
+    private val paramsArea = JTextArea(3, 20)
     private val headersArea = JTextArea(3, 20)
     private val bodyArea = JTextArea(5, 20)
-    private val responseArea = JTextArea(10, 20).apply { isEditable = false }
+    private val responseArea = JTextArea(10, 20).apply { isEditable = false; lineWrap = true }
 
+    // Log UI
     private val hostField = JTextField("127.0.0.1")
     private val userField = JTextField("root")
     private val passField = JBPasswordField()
     private val logPathField = JTextField("/var/log/syslog")
     private val consoleView = TextConsoleBuilderFactory.getInstance().createBuilder(project).console
 
-    // 2. The Main Content (Tabs)
     val content: JComponent = JBTabbedPane().apply {
         addTab("API Client", createApiTab())
         addTab("Log Viewer", createLogTab())
     }
 
-    // 3. API Tab UI
     private fun createApiTab(): JPanel = panel {
         row("Method") { cell(methodCombo) }
         row("URL") { cell(urlField).align(Align.FILL) }
 
         row {
             val subTabs = JBTabbedPane().apply {
-                addTab("Headers", createHeadersPanel())
-                addTab("Body", createBodyPanel())
+                addTab("Params", createScrollableArea(paramsArea, "key=value (one per line)"))
+                addTab("Headers", createScrollableArea(headersArea, "Key: Value (one per line)"))
+                addTab("Body", createScrollableArea(bodyArea, "JSON or Text body"))
             }
             cell(subTabs).align(Align.FILL)
         }
@@ -62,46 +63,40 @@ class MainPanel(private val project: Project) {
         }
     }
 
-    private fun createHeadersPanel(): JPanel = panel {
-        row { cell(JBScrollPane(headersArea)).align(Align.FILL) }
-    }
-
-    private fun createBodyPanel(): JPanel = panel {
-        row { cell(JBScrollPane(bodyArea)).align(Align.FILL) }
-    }
-
-    // 4. Log Tab UI
     private fun createLogTab(): JPanel = panel {
-        group("SSH Credentials") {
+        group("SSH Connection") {
             row("Host") { cell(hostField).align(Align.FILL) }
-            row("Username") { cell(userField).align(Align.FILL) }
-            row("Password") { cell(passField).align(Align.FILL) }
-            row("Log Path") { cell(logPathField).align(Align.FILL) }
+            row("User") { cell(userField).align(Align.FILL) }
+            row("Pass") { cell(passField).align(Align.FILL) }
+            row("Path") { cell(logPathField).align(Align.FILL) }
         }
         row {
             button("Stream Logs") { runLogStream() }
-            button("AI Analyze Logs") {
-                val ai = service<AiService>()
-                ai.interpretData("Analyzing logs from ${logPathField.text}...")
+            button("AI Analyze") {
+                service<AiService>().interpretData("Log path: ${logPathField.text}")
             }
         }
         row { cell(consoleView.component).align(Align.FILL) }
     }
 
-    // 5. Logic Functions (Must stay inside the MainPanel class)
+    // Helper to create the sub-tab panels
+    private fun createScrollableArea(textArea: JTextArea, hint: String): JPanel = panel {
+        row { label(hint) }
+        row { cell(JBScrollPane(textArea)).align(Align.FILL) }
+    }
+
     private fun runApiRequest() {
-        responseArea.text = "Executing request..."
+        responseArea.text = "Executing..."
         val url = urlField.text
         val method = methodCombo.selectedItem?.toString() ?: "GET"
         val headers = headersArea.text
+        val params = paramsArea.text
         val body = bodyArea.text
 
         object : Task.Backgroundable(project, "API Request") {
             override fun run(indicator: ProgressIndicator) {
-                val result = ApiExecutor.execute(url, method, headers, body)
-                ApplicationManager.getApplication().invokeLater {
-                    responseArea.text = result
-                }
+                val result = ApiExecutor.execute(url, method, headers, params, body)
+                ApplicationManager.getApplication().invokeLater { responseArea.text = result }
             }
         }.queue()
     }
@@ -129,4 +124,4 @@ class MainPanel(private val project: Project) {
             }
         }.queue()
     }
-} // <--- This final brace closes the MainPanel class
+}
